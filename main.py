@@ -6,13 +6,21 @@ from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 from Crypto.Random import get_random_bytes
 import binascii
+import time
 
 # AES Encryption/Decryption key size (256-bit key)
 BLOCK_SIZE = 16
+MAX_RETRIES = 3
+LOCKOUT_TIME = 30  # Lockout duration in seconds
+
+# Global variables to track retries and lockout state
+retry_count = 0
+lockout_start_time = None
+
 
 def encrypt():
     password = code.get()
-    
+
     if password == user_password:
         screen1 = Toplevel(screen)
         screen1.title("Encryption")
@@ -54,6 +62,20 @@ def encrypt():
 
 
 def decrypt():
+    global retry_count, lockout_start_time
+
+    # Check if the user is locked out
+    if lockout_start_time:
+        elapsed_time = time.time() - lockout_start_time
+        if elapsed_time < LOCKOUT_TIME:
+            remaining_time = LOCKOUT_TIME - int(elapsed_time)
+            messagebox.showerror("Locked Out", f"Too many failed attempts. Try again in {remaining_time} seconds.")
+            return
+        else:
+            # Reset lockout after the lockout time passes
+            lockout_start_time = None
+            retry_count = 0
+
     password = code.get()
 
     if password == user_password:
@@ -85,6 +107,9 @@ def decrypt():
             text2.place(x=10, y=40, width=380, height=150)
             text2.insert(END, decrypted_message)
 
+            # Reset retry counter upon successful decryption
+            retry_count = 0
+
         except (binascii.Error, ValueError):
             messagebox.showerror("Decryption Error", "The encrypted message is corrupted or the wrong password was used.")
         except Exception as e:
@@ -94,7 +119,13 @@ def decrypt():
         messagebox.showerror("Alert!", "Please enter a password")
 
     else:
-        messagebox.showerror("Alert!", "Invalid password")
+        retry_count += 1
+        if retry_count >= MAX_RETRIES:
+            lockout_start_time = time.time()  # Start the lockout timer
+            messagebox.showerror("Locked Out", f"Too many failed attempts. You are locked out for {LOCKOUT_TIME} seconds.")
+        else:
+            remaining_attempts = MAX_RETRIES - retry_count
+            messagebox.showerror("Alert!", f"Invalid password. {remaining_attempts} attempt(s) remaining.")
 
 
 def main_screen():
