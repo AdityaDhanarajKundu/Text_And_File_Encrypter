@@ -1,15 +1,16 @@
-from tkinter import *
-from tkinter import messagebox, filedialog
-import base64
+import os
 import hashlib
-from Crypto.Cipher import AES
-from Crypto.Util.Padding import pad, unpad
-from Crypto.Random import get_random_bytes
+import base64
 import binascii
 import time
 import threading
-from tkinter.ttk import Progressbar
 import re
+from tkinter import *
+from tkinter import messagebox, filedialog
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad, unpad
+from Crypto.Random import get_random_bytes
+from tkinter.ttk import Progressbar
 
 # AES Encryption/Decryption key size (256-bit key)
 BLOCK_SIZE = 16
@@ -19,7 +20,22 @@ LOCKOUT_TIME = 30  # Lockout duration in seconds
 # Global variables to track retries and lockout state
 retry_count = 0
 lockout_start_time = None
+user_password = None  # To hold the salted password hash
 
+def hash_password(password):
+    # Generate a random 16-byte salt
+    salt = os.urandom(16)
+    # Create the salted hash
+    salted_hash = salt + hashlib.sha256(salt + password.encode()).digest()
+    return salted_hash
+
+def verify_password(stored_salted_hash, password):
+    # Extract the salt from the stored salted hash
+    salt = stored_salted_hash[:16]
+    # Extract the expected hash
+    expected_hash = stored_salted_hash[16:]
+    # Hash the input password with the extracted salt
+    return hashlib.sha256(salt + password.encode()).digest() == expected_hash
 
 def show_progress_bar(window, task):
     # Create a Toplevel window for the progress bar
@@ -37,17 +53,16 @@ def show_progress_bar(window, task):
 
     def close_progress():
         progress.stop()
-        time.sleep(1)  # Ensure the progress bar stays visible for at least 1 seconds
+        time.sleep(1)  # Ensure the progress bar stays visible for at least 1 second
         progress_window.destroy()
 
     # Run the task in a new thread to avoid blocking the GUI
     threading.Thread(target=lambda: [task(), close_progress()]).start()
 
-
 def encrypt():
     password = code.get()
 
-    if password == user_password:
+    if verify_password(user_password, password):  # Verify using the salted hash
         screen1 = Toplevel(screen)
         screen1.title("Encryption")
         screen1.geometry("500x300")
@@ -89,7 +104,6 @@ def encrypt():
     else:
         messagebox.showerror("Alert!", "Invalid password")
 
-
 def decrypt():
     global retry_count, lockout_start_time
 
@@ -107,7 +121,7 @@ def decrypt():
 
     password = code.get()
 
-    if password == user_password:
+    if verify_password(user_password, password):  # Verify using the salted hash
         screen2 = Toplevel(screen)
         screen2.title("Decryption")
         screen2.geometry("500x300")
@@ -159,14 +173,13 @@ def decrypt():
             remaining_attempts = MAX_RETRIES - retry_count
             messagebox.showerror("Alert!", f"Invalid password. {remaining_attempts} attempt(s) remaining.")
 
-
 def encrypt_file():
     file_path = filedialog.askopenfilename()
 
     if file_path:
         try:
             password = code.get()
-            if password != user_password:
+            if not verify_password(user_password, password):  # Verify using the salted hash
                 messagebox.showerror("Alert!", "Invalid password for file encryption.")
                 return
 
@@ -189,14 +202,13 @@ def encrypt_file():
         except Exception as e:
             messagebox.showerror("File Encryption Error", f"Failed to encrypt file: {str(e)}")
 
-
 def decrypt_file():
     file_path = filedialog.askopenfilename(filetypes=[("Encrypted files", "*.enc")])
 
     if file_path:
         try:
             password = code.get()
-            if password != user_password:
+            if not verify_password(user_password, password):  # Verify using the salted hash
                 messagebox.showerror("Alert!", "Invalid password for file decryption.")
                 return
 
@@ -220,7 +232,6 @@ def decrypt_file():
 
         except Exception as e:
             messagebox.showerror("File Decryption Error", f"Failed to decrypt file: {str(e)}")
-
 
 def main_screen():
     global screen
@@ -255,7 +266,6 @@ def main_screen():
 
     screen.mainloop()
 
-
 def validate_password(password):
     # Check password length
     if len(password) < 8:
@@ -273,7 +283,6 @@ def validate_password(password):
     if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
         return "Password must contain at least one special character."
     return None
-
 
 def set_password():
     global user_password
@@ -298,7 +307,7 @@ def set_password():
         if validation_message:
             messagebox.showerror("Password Error", validation_message)
         else:
-            user_password = entered_password
+            user_password = hash_password(entered_password)  # Hash the entered password with salt
             screen.destroy()
             main_screen()
 
