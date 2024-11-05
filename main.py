@@ -9,6 +9,7 @@ import binascii
 import time
 import threading
 from tkinter.ttk import Progressbar
+import re
 
 # AES Encryption/Decryption key size (256-bit key)
 BLOCK_SIZE = 16
@@ -255,31 +256,55 @@ def main_screen():
     screen.mainloop()
 
 
+def validate_password(password):
+    # Check password length
+    if len(password) < 8:
+        return "Password must be at least 8 characters long."
+    # Check for uppercase letter
+    if not re.search(r"[A-Z]", password):
+        return "Password must contain at least one uppercase letter."
+    # Check for lowercase letter
+    if not re.search(r"[a-z]", password):
+        return "Password must contain at least one lowercase letter."
+    # Check for digit
+    if not re.search(r"[0-9]", password):
+        return "Password must contain at least one digit."
+    # Check for special character
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
+        return "Password must contain at least one special character."
+    return None
+
+
 def set_password():
     global user_password
 
     screen = Tk()
-    screen.geometry("300x200")
+    screen.geometry("300x400")
     screen.title("Set Password")
 
     Label(screen, text="Set your encryption/decryption password", fg="black", font=("calibri", 13)).pack(pady=20)
+
+    Label(screen, text="Password must include:\n- At least 8 characters\n- At least one uppercase letter\n- One lowercase letter\n- One digit\n- One special character", fg="gray", font=("calibri", 10)).pack(pady=5)
 
     password_var = StringVar()
     Entry(screen, textvariable=password_var, width=19, bd=0, font=("arial", 25), show="*").pack(pady=10)
 
     def save_password():
         global user_password
-        user_password = password_var.get()
-        if user_password == "":
-            messagebox.showerror("Alert!", "Password cannot be empty")
+        entered_password = password_var.get()
+        
+        # Validate the password strength
+        validation_message = validate_password(entered_password)
+        if validation_message:
+            messagebox.showerror("Password Error", validation_message)
         else:
+            user_password = entered_password
             screen.destroy()
             main_screen()
 
     Button(screen, text="Save Password", height=2, width=20, bg="#1089ff", fg="white", bd=0, command=save_password).pack(pady=20)
 
     screen.mainloop()
-
 
 # Start the application by asking the user to set a password
 set_password()
