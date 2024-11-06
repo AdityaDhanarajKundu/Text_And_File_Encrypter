@@ -8,18 +8,18 @@ import re
 from tkinter import *
 from tkinter import messagebox, filedialog
 from Crypto.Cipher import AES
-from Crypto.Util.Padding import pad, unpad
 from Crypto.Random import get_random_bytes
 from tkinter.ttk import Progressbar
 
-# AES Encryption/Decryption key size (256-bit key)
+# AES Key Size and Constants
 BLOCK_SIZE = 16
+AES_KEY_SIZE = 32
 MAX_RETRIES = 3
 LOCKOUT_TIME = 30  # Lockout duration in seconds
 
 class PasswordManager:
     def __init__(self):
-        self.user_password = None  # Stores the hashed password with salt
+        self.user_password = None
         self.retry_count = 0
         self.lockout_start_time = None
 
@@ -121,7 +121,7 @@ def show_progress_bar(window, task):
 
     threading.Thread(target=lambda: [task(), close_progress()]).start()
 
-# Text encryption function
+# Text encryption function using AES-GCM
 def encrypt():
     password = code.get()
     if password_manager.verify_password(password):
@@ -138,15 +138,14 @@ def encrypt():
         def process_encryption():
             try:
                 key = hashlib.sha256(password.encode()).digest()
-                iv = get_random_bytes(BLOCK_SIZE)
-                cipher = AES.new(key, AES.MODE_CBC, iv)
-                ciphertext = cipher.encrypt(pad(message.encode('utf-8'), BLOCK_SIZE))
-                encoded_cipher = base64.b64encode(iv + ciphertext).decode('utf-8')
+                cipher = AES.new(key, AES.MODE_GCM)
+                ciphertext, tag = cipher.encrypt_and_digest(message.encode('utf-8'))
+                encrypted_data = base64.b64encode(cipher.nonce + tag + ciphertext).decode('utf-8')
 
                 Label(screen1, text="ENCRYPT", font="arial", fg="white", bg="#ed3833").place(x=10, y=0)
                 text2 = Text(screen1, font="Robote 10", bg="white", relief=GROOVE, wrap=WORD, bd=0)
                 text2.place(x=10, y=40, width=480, height=230)
-                text2.insert(END, encoded_cipher)
+                text2.insert(END, encrypted_data)
             except Exception as e:
                 messagebox.showerror("Encryption Error", f"Failed to encrypt: {str(e)}")
 
@@ -156,7 +155,7 @@ def encrypt():
     else:
         messagebox.showerror("Alert!", "Invalid password")
 
-# Text decryption function
+# Text decryption function using AES-GCM
 def decrypt():
     password = code.get()
     if password_manager.attempt_login(password):
@@ -173,12 +172,11 @@ def decrypt():
         def process_decryption():
             try:
                 key = hashlib.sha256(password.encode()).digest()
-                decoded_message = base64.b64decode(message)
-                iv = decoded_message[:BLOCK_SIZE]
-                ciphertext = decoded_message[BLOCK_SIZE:]
+                encrypted_data = base64.b64decode(message)
+                nonce, tag, ciphertext = encrypted_data[:BLOCK_SIZE], encrypted_data[BLOCK_SIZE:2*BLOCK_SIZE], encrypted_data[2*BLOCK_SIZE:]
 
-                cipher = AES.new(key, AES.MODE_CBC, iv)
-                decrypted_message = unpad(cipher.decrypt(ciphertext), BLOCK_SIZE).decode('utf-8')
+                cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
+                decrypted_message = cipher.decrypt_and_verify(ciphertext, tag).decode('utf-8')
 
                 Label(screen2, text="DECRYPT", font="arial", fg="white", bg="#00bd56").place(x=10, y=0)
                 text2 = Text(screen2, font="Robote 10", bg="white", relief=GROOVE, wrap=WORD, bd=0)
@@ -186,76 +184,13 @@ def decrypt():
                 text2.insert(END, decrypted_message)
 
             except (binascii.Error, ValueError):
-                messagebox.showerror("Decryption Error", "The encrypted message is corrupted or the wrong password was used.")
+                messagebox.showerror("Decryption Error", "The message is corrupted or the wrong password was used.")
             except Exception as e:
                 messagebox.showerror("Decryption Error", f"Failed to decrypt: {str(e)}")
 
         show_progress_bar(screen, process_decryption)
     elif password == "":
         messagebox.showerror("Alert!", "Please enter a password")
-    else:
-        messagebox.showerror("Alert!", "Invalid password")
-
-# File encryption function
-def encrypt_file():
-    password = code.get()
-    if password_manager.verify_password(password):
-        file_path = filedialog.askopenfilename()
-        if not file_path:
-            return
-
-        def process_file_encryption():
-            try:
-                key = hashlib.sha256(password.encode()).digest()
-                iv = get_random_bytes(BLOCK_SIZE)
-                cipher = AES.new(key, AES.MODE_CBC, iv)
-
-                with open(file_path, 'rb') as f:
-                    plaintext = f.read()
-                ciphertext = cipher.encrypt(pad(plaintext, BLOCK_SIZE))
-                encrypted_data = base64.b64encode(iv + ciphertext)
-
-                encrypted_file_path = file_path + ".enc"
-                with open(encrypted_file_path, 'wb') as ef:
-                    ef.write(encrypted_data)
-                messagebox.showinfo("File Encryption", f"File encrypted successfully as {encrypted_file_path}")
-            except Exception as e:
-                messagebox.showerror("File Encryption Error", f"Failed to encrypt file: {str(e)}")
-
-        show_progress_bar(screen, process_file_encryption)
-    else:
-        messagebox.showerror("Alert!", "Invalid password")
-
-# File decryption function
-def decrypt_file():
-    password = code.get()
-    if password_manager.attempt_login(password):
-        file_path = filedialog.askopenfilename()
-        if not file_path:
-            return
-
-        def process_file_decryption():
-            try:
-                key = hashlib.sha256(password.encode()).digest()
-                
-                with open(file_path, 'rb') as ef:
-                    encrypted_data = base64.b64decode(ef.read())
-                iv = encrypted_data[:BLOCK_SIZE]
-                ciphertext = encrypted_data[BLOCK_SIZE:]
-
-                cipher = AES.new(key, AES.MODE_CBC, iv)
-                plaintext = unpad(cipher.decrypt(ciphertext), BLOCK_SIZE)
-
-                decrypted_file_path = file_path.replace(".enc", "_decrypted")
-                with open(decrypted_file_path, 'wb') as df:
-                    df.write(plaintext)
-                messagebox.showinfo("File Decryption", f"File decrypted successfully as {decrypted_file_path}")
-            except (binascii.Error, ValueError):
-                messagebox.showerror("File Decryption Error", "The encrypted file is corrupted or the wrong password was used.")
-            except Exception as e:
-                messagebox.showerror("File Decryption Error", f"Failed to decrypt file: {str(e)}")
-
-        show_progress_bar(screen, process_file_decryption)
     else:
         messagebox.showerror("Alert!", "Invalid password")
 
@@ -280,9 +215,7 @@ def main_screen():
 
     Button(text="ENCRYPT", height="2", width=23, bg="#ed3833", fg="white", bd=0, command=encrypt).place(x=10, y=250)
     Button(text="DECRYPT", height="2", width=23, bg="#00bd56", fg="white", bd=0, command=decrypt).place(x=200, y=250)
-    Button(text="ENCRYPT FILE", height="2", width=23, bg="#ed3833", fg="white", bd=0, command=encrypt_file).place(x=10, y=300)
-    Button(text="DECRYPT FILE", height="2", width=23, bg="#00bd56", fg="white", bd=0, command=decrypt_file).place(x=200, y=300)
-    Button(text="RESET", height="2", width=50, bg="#1089ff", fg="white", bd=0, command=reset).place(x=10, y=350)
+    Button(text="RESET", height="2", width=50, bg="#1089ff", fg="white", bd=0, command=reset).place(x=10, y=300)
 
     screen.mainloop()
 
