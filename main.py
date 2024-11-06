@@ -155,7 +155,7 @@ def encrypt():
     else:
         messagebox.showerror("Alert!", "Invalid password")
 
-# Text decryption function using AES-GCM
+# Text decryption function using AES-GCM with specific error messages
 def decrypt():
     password = code.get()
     if password_manager.attempt_login(password):
@@ -183,8 +183,13 @@ def decrypt():
                 text2.place(x=10, y=40, width=480, height=230)
                 text2.insert(END, decrypted_message)
 
-            except (binascii.Error, ValueError):
-                messagebox.showerror("Decryption Error", "The message is corrupted or the wrong password was used.")
+            except ValueError as e:
+                if "MAC check failed" in str(e):
+                    messagebox.showerror("Decryption Error", "The message is corrupted or has been tampered with.")
+                else:
+                    messagebox.showerror("Decryption Error", "Incorrect password provided.")
+            except binascii.Error:
+                messagebox.showerror("Decryption Error", "The input message is not in the correct format.")
             except Exception as e:
                 messagebox.showerror("Decryption Error", f"Failed to decrypt: {str(e)}")
 
