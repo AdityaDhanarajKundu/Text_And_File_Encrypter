@@ -17,26 +17,68 @@ BLOCK_SIZE = 16
 MAX_RETRIES = 3
 LOCKOUT_TIME = 30  # Lockout duration in seconds
 
+class PasswordManager:
+    def __init__(self):
+        self.user_password = None  # Stores the hashed password with salt
+        self.retry_count = 0
+        self.lockout_start_time = None
+
+    def hash_password(self, password):
+        salt = os.urandom(16)
+        salted_hash = salt + hashlib.sha256(salt + password.encode()).digest()
+        return salted_hash
+
+    def verify_password(self, password):
+        if self.user_password is None:
+            return False
+        salt = self.user_password[:16]
+        expected_hash = self.user_password[16:]
+        return hashlib.sha256(salt + password.encode()).digest() == expected_hash
+
+    def validate_password(self, password):
+        if len(password) < 8:
+            return False, "Password must be at least 8 characters long."
+        if not re.search(r"[A-Z]", password):
+            return False, "Password must contain at least one uppercase letter."
+        if not re.search(r"[a-z]", password):
+            return False, "Password must contain at least one lowercase letter."
+        if not re.search(r"[0-9]", password):
+            return False, "Password must contain at least one digit."
+        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
+            return False, "Password must contain at least one special character."
+        return True, None
+
+    def set_password(self):
+        screen = Tk()
+        screen.geometry("300x400")
+        screen.title("Set Password")
+
+        Label(screen, text="Set your encryption/decryption password", fg="black", font=("calibri", 13)).pack(pady=20)
+        Label(screen, text="Password must include:\n- At least 8 characters\n- At least one uppercase letter\n- One lowercase letter\n- One digit\n- One special character", fg="gray", font=("calibri", 10)).pack(pady=5)
+
+        password_var = StringVar()
+        Entry(screen, textvariable=password_var, width=19, bd=0, font=("arial", 25), show="*").pack(pady=10)
+
+        def save_password():
+            entered_password = password_var.get()
+            is_valid, validation_message = self.validate_password(entered_password)
+            if not is_valid:
+                messagebox.showerror("Password Error", validation_message)
+            else:
+                self.user_password = self.hash_password(entered_password)
+                screen.destroy()
+
+        Button(screen, text="Save Password", height=2, width=20, bg="#1089ff", fg="white", bd=0, command=save_password).pack(pady=20)
+        screen.mainloop()
+
+password_manager = PasswordManager()
+
 # Global variables to track retries and lockout state
 retry_count = 0
 lockout_start_time = None
-user_password = None  # To hold the salted password hash
+# user_password = None  # To hold the salted password hash
 encryption_mode = "AES-CBC"
 
-def hash_password(password):
-    # Generate a random 16-byte salt
-    salt = os.urandom(16)
-    # Create the salted hash
-    salted_hash = salt + hashlib.sha256(salt + password.encode()).digest()
-    return salted_hash
-
-def verify_password(stored_salted_hash, password):
-    # Extract the salt from the stored salted hash
-    salt = stored_salted_hash[:16]
-    # Extract the expected hash
-    expected_hash = stored_salted_hash[16:]
-    # Hash the input password with the extracted salt
-    return hashlib.sha256(salt + password.encode()).digest() == expected_hash
 
 def show_progress_bar(window, task):
     # Create a Toplevel window for the progress bar
@@ -63,7 +105,7 @@ def show_progress_bar(window, task):
 def encrypt():
     password = code.get()
 
-    if verify_password(user_password, password):  # Verify using the salted hash
+    if password_manager.verify_password(password):  # Verify using the salted hash
         screen1 = Toplevel(screen)
         screen1.title("Encryption")
         screen1.geometry("500x300")
@@ -128,7 +170,7 @@ def decrypt():
 
     password = code.get()
 
-    if verify_password(user_password, password):  # Verify using the salted hash
+    if password_manager.verify_password(password):  # Verify using the salted hash
         screen2 = Toplevel(screen)
         screen2.title("Decryption")
         screen2.geometry("500x300")
@@ -194,7 +236,7 @@ def encrypt_file():
     if file_path:
         try:
             password = code.get()
-            if not verify_password(user_password, password):  # Verify using the salted hash
+            if not password_manager.verify_password(password):  # Verify using the salted hash
                 messagebox.showerror("Alert!", "Invalid password for file encryption.")
                 return
 
@@ -229,7 +271,7 @@ def decrypt_file():
     if file_path:
         try:
             password = code.get()
-            if not verify_password(user_password, password):  # Verify using the salted hash
+            if not password_manager.verify_password(password):  # Verify using the salted hash
                 messagebox.showerror("Alert!", "Invalid password for file decryption.")
                 return
 
@@ -302,54 +344,8 @@ def main_screen():
 
     screen.mainloop()
 
-def validate_password(password):
-    # Check password length
-    if len(password) < 8:
-        return "Password must be at least 8 characters long."
-    # Check for uppercase letter
-    if not re.search(r"[A-Z]", password):
-        return "Password must contain at least one uppercase letter."
-    # Check for lowercase letter
-    if not re.search(r"[a-z]", password):
-        return "Password must contain at least one lowercase letter."
-    # Check for digit
-    if not re.search(r"[0-9]", password):
-        return "Password must contain at least one digit."
-    # Check for special character
-    if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
-        return "Password must contain at least one special character."
-    return None
 
-def set_password():
-    global user_password
-
-    screen = Tk()
-    screen.geometry("300x400")
-    screen.title("Set Password")
-
-    Label(screen, text="Set your encryption/decryption password", fg="black", font=("calibri", 13)).pack(pady=20)
-
-    Label(screen, text="Password must include:\n- At least 8 characters\n- At least one uppercase letter\n- One lowercase letter\n- One digit\n- One special character", fg="gray", font=("calibri", 10)).pack(pady=5)
-
-    password_var = StringVar()
-    Entry(screen, textvariable=password_var, width=19, bd=0, font=("arial", 25), show="*").pack(pady=10)
-
-    def save_password():
-        global user_password
-        entered_password = password_var.get()
-        
-        # Validate the password strength
-        validation_message = validate_password(entered_password)
-        if validation_message:
-            messagebox.showerror("Password Error", validation_message)
-        else:
-            user_password = hash_password(entered_password)  # Hash the entered password with salt
-            screen.destroy()
-            main_screen()
-
-    Button(screen, text="Save Password", height=2, width=20, bg="#1089ff", fg="white", bd=0, command=save_password).pack(pady=20)
-
-    screen.mainloop()
 
 # Start the application by asking the user to set a password
-set_password()
+password_manager.set_password()
+main_screen()
