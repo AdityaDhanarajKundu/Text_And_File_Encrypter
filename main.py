@@ -142,6 +142,13 @@ def encrypt():
                 text2.place(x=10, y=40, width=480, height=230)
                 text2.insert(END, encoded_cipher)
 
+                # Prompt user to save the encrypted text
+                save_path = filedialog.asksaveasfilename(defaultextension=".enc", filetypes=[("Encrypted files", "*.enc")])
+                if save_path:
+                    with open(save_path, "w") as file:
+                        file.write(encoded_cipher)
+                    messagebox.showinfo("Success", f"Encrypted text saved to {save_path}")
+
             except Exception as e:
                 messagebox.showerror("Encryption Error", f"Failed to encrypt: {str(e)}")
 
@@ -176,7 +183,19 @@ def decrypt():
         screen2.geometry("500x300")
         screen2.configure(bg="#00bd56")
 
-        message = text1.get(1.0, END)
+        # Prompt user to load encrypted text from a file or the text box
+        load_from_file = messagebox.askyesno("Load from File", "Do you want to load the encrypted text from a file?")
+        if load_from_file:
+            file_path = filedialog.askopenfilename(filetypes=[("Encrypted files", "*.enc")])
+            if file_path:
+                with open(file_path, "r") as file:
+                    message = file.read()
+            else:
+                messagebox.showerror("Error", "No file selected for decryption")
+                return
+        else:
+            message = text1.get(1.0, END)
+            
         if not message.strip():
             messagebox.showerror("Error", "No text provided for decryption")
             return
