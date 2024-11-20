@@ -1,4 +1,5 @@
 import os
+import sys
 import hashlib
 import base64
 import binascii
@@ -72,6 +73,15 @@ class PasswordManager:
         screen.mainloop()
 
 password_manager = PasswordManager()
+
+## Get the absolute path to the resource for pyinstaller
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
 
 # Global variables to track retries and lockout state
 retry_count = 0
@@ -195,7 +205,7 @@ def decrypt():
                 return
         else:
             message = text1.get(1.0, END)
-            
+
         if not message.strip():
             messagebox.showerror("Error", "No text provided for decryption")
             return
@@ -327,7 +337,7 @@ def main_screen():
     screen = Tk()
     screen.geometry("500x500")
 
-    image_icon = PhotoImage(file="keys.png")
+    image_icon = PhotoImage(file=resource_path("keys.png"))
     screen.iconphoto(False, image_icon)
     screen.title("Text & File Encrypter and Decrypter")
 
