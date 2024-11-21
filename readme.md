@@ -7,7 +7,7 @@ This application was developed as part of the Final Year Project for the <b>CSE-
 The application has been bundled into a standalone executable <B>(main.exe)</B> located in dist folder, using PyInstaller, allowing easy execution without needing Python or dependencies pre-installed.
 
 ## Domain : CRYPTOGRAPHY AND DATA SECURITY
-Cryptography and data security focus on the principles and techniques required to protect sensitive information from unauthorized access and tampering. It forms the backbone of cybersecurity, ensuring the confidentiality, integrity, and authenticity of data in transit and at rest. This domain encompasses encryption algorithms, hashing methods, digital signatures, and secure communication protocols.
+Cryptography and data security focus on the principles and techniques required to protect sensitive information from unauthorized access and tampering. It forms the backbone of cybersecurity, ensuring data confidentiality, integrity, and authenticity in transit and at rest. This domain encompasses encryption algorithms, hashing methods, digital signatures, and secure communication protocols.
 
 The project aligns with this domain by providing:
 
@@ -15,7 +15,7 @@ The project aligns with this domain by providing:
 2) <B>Integrity:</B> Verifies that data remains unchanged or uncorrupted.
 3) <B>Usability:</B> Simplifies secure encryption and decryption for end-users through a graphical interface.
 ### Vision
-The vision of this project is to demonstrate the practical implementation of cryptographic techniques in securing digital information, addressing common security concerns like data breaches, unauthorized access, and file tampering. It aims to provide an extensible platform for further research and development in the field of cryptography.
+This project's vision is to demonstrate the practical implementation of cryptographic techniques in securing digital information, addressing common security concerns like data breaches, unauthorized access, and file tampering. It aims to provide an extensible platform for further research and development in the field of cryptography.
 
 ## Features
 
@@ -37,7 +37,7 @@ The vision of this project is to demonstrate the practical implementation of cry
 - After 3 failed password attempts, the user is locked out for 30 seconds.
 ### 6) Encryption Modes
 - AES-CBC (Cipher Block Chaining): Requires an initialization vector (IV) for encryption.
-- AES-GCM (Galois/Counter Mode): Provides both encryption and authentication, ensuring data integrity.
+- AES-GCM (Galois/Counter Mode): Provides encryption and authentication, ensuring data integrity.
 ### 7) User-Friendly Interface
 - Developed using Tkinter, offering a clean and intuitive graphical interface.
 - Includes reset options and detailed error handling.
