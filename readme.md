@@ -17,6 +17,9 @@ The project aligns with this domain by providing:
 ### Vision
 This project's vision is to demonstrate the practical implementation of cryptographic techniques in securing digital information, addressing common security concerns like data breaches, unauthorized access, and file tampering. It aims to provide an extensible platform for further research and development in the field of cryptography.
 
+## Web documentation 
+- Find the web documentation in the given link ```https://biraj007.github.io/Text-File-Encryption-Decryption-Tool/```
+
 ## Features
 
 ### 1) Text Encryption and Decryption
