@@ -269,8 +269,11 @@ def encrypt_file():
                 messagebox.showerror("Alert!", "Invalid password for file encryption.")
                 return
 
+            # Get the file's original extension
+            file_extension = os.path.splitext(file_path)[1].encode('utf-8')
+
             with open(file_path, 'rb') as file:
-                file_data = file.read()
+                file_data = file.read()  # Read file in binary mode
 
             key = hashlib.sha256(password.encode()).digest()
             iv = get_random_bytes(BLOCK_SIZE)
@@ -278,15 +281,15 @@ def encrypt_file():
             if encryption_mode == "AES-CBC":
                 cipher = AES.new(key, AES.MODE_CBC, iv)
                 ciphertext = cipher.encrypt(pad(file_data, BLOCK_SIZE))
-                encrypted_data = iv + ciphertext
+                encrypted_data = iv + len(file_extension).to_bytes(1, 'big') + file_extension + ciphertext
             elif encryption_mode == "AES-GCM":
                 cipher = AES.new(key, AES.MODE_GCM, nonce=iv)
                 ciphertext, tag = cipher.encrypt_and_digest(file_data)
-                encrypted_data = cipher.nonce + tag + ciphertext
+                encrypted_data = cipher.nonce + len(file_extension).to_bytes(1, 'big') + file_extension + tag + ciphertext
 
             save_path = filedialog.asksaveasfilename(defaultextension=".enc", filetypes=[("Encrypted files", "*.enc")])
             if save_path:
-                with open(save_path, 'wb') as file:
+                with open(save_path, 'wb') as file:  # Save encrypted file in binary mode
                     file.write(encrypted_data)
 
                 messagebox.showinfo("Success", f"File encrypted successfully and saved at {save_path}")
@@ -305,25 +308,29 @@ def decrypt_file():
                 return
 
             with open(file_path, 'rb') as file:
-                file_data = file.read()
+                file_data = file.read()  # Read file in binary mode
 
             key = hashlib.sha256(password.encode()).digest()
 
             if encryption_mode == "AES-CBC":
                 iv = file_data[:BLOCK_SIZE]
-                ciphertext = file_data[BLOCK_SIZE:]
+                extension_length = file_data[BLOCK_SIZE]
+                file_extension = file_data[BLOCK_SIZE + 1:BLOCK_SIZE + 1 + extension_length].decode('utf-8')
+                ciphertext = file_data[BLOCK_SIZE + 1 + extension_length:]
                 cipher = AES.new(key, AES.MODE_CBC, iv)
                 decrypted_data = unpad(cipher.decrypt(ciphertext), BLOCK_SIZE)
             elif encryption_mode == "AES-GCM":
                 nonce = file_data[:BLOCK_SIZE]
-                tag = file_data[BLOCK_SIZE:BLOCK_SIZE+16]
-                ciphertext = file_data[BLOCK_SIZE+16:]
+                extension_length = file_data[BLOCK_SIZE]
+                file_extension = file_data[BLOCK_SIZE + 1:BLOCK_SIZE + 1 + extension_length].decode('utf-8')
+                tag = file_data[BLOCK_SIZE + 1 + extension_length:BLOCK_SIZE + 17 + extension_length]
+                ciphertext = file_data[BLOCK_SIZE + 17 + extension_length:]
                 cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
                 decrypted_data = cipher.decrypt_and_verify(ciphertext, tag)
 
-            save_path = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Text files", "*.txt")])
+            save_path = filedialog.asksaveasfilename(defaultextension=file_extension, filetypes=[("All Files", "*.*")])
             if save_path:
-                with open(save_path, 'wb') as file:
+                with open(save_path, 'wb') as file:  # Save decrypted file in binary mode
                     file.write(decrypted_data)
 
                 messagebox.showinfo("Success", f"File decrypted successfully and saved at {save_path}")
